@@ -2,9 +2,8 @@
 // "Object Oriented Software Engineering" and is issued under the open-source
 // license found at www.lloseng.com 
 
-import java.io.*;
-import ocsf.server.*;
 
+import ocsf.server.*;
 /**
  * This class overrides some of the methods in the abstract 
  * superclass in order to give more functionality to the server.
@@ -23,7 +22,6 @@ public class EchoServer extends AbstractServer
    * The default port to listen on.
    */
   final public static int DEFAULT_PORT = 5555;
-  
   //Constructors ****************************************************
   
   /**
@@ -48,10 +46,65 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient
     (Object msg, ConnectionToClient client)
   {
-    System.out.println("Message received: " + msg + " from " + client);
-    this.sendToAllClients(msg);
+    System.out.println();
+    System.out.println("Message received: " + msg + " from " + client.getInfo("login"));
+    if (msg.toString().length() > 7 && "#login ".equals(msg.toString().substring(0,7))) {
+      String loginId = msg.toString().substring(7);
+      client.setInfo("login", loginId);
+      System.out.println(loginId + " has logged on.");
+      this.sendToAllClients(loginId + " has logged on.");
+    } else this.sendToAllClients(client.getInfo("login") + "> " + msg);
+  }
+
+  private void handleServerMessage(String msg) {
+    System.out.println("SERVER MSG> " + msg);
+    this.sendToAllClients("SERVER MSG> " + msg);
   }
     
+  public void handleMessageFromServerConsole(String message)
+  {
+    boolean isCmd = false;
+    if (message.startsWith("#")) {
+      isCmd = true;
+      String[] components = message.substring(1).split(" ",2);
+      String command = components[0];
+      String param = components.length > 1 ? components[1] : null;
+      if ("quit".equals(command)) {
+        try {
+        this.close();
+        } catch (Exception e) {}
+        finally {
+        System.exit(0);
+        }
+      } else if ("stop".equals(command)) {
+        this.stopListening();
+        this.sendToAllClients("WARNING - the server has stopped listening for connections");
+      } else if ("close".equals(command)) {
+        try {
+          this.sendToAllClients("SERVER SHUTTING DOWN! DISCONNECTING!");
+          this.close();
+        } catch (Exception e) {}
+      } else if ("start".equals(command)) {
+        try {
+          this.listen();
+          } catch (Exception e) {}
+      } else if ("getport".equals(command)) {
+        System.out.println("the server port is: " + this.getPort());
+      } else if ("setport".equals(command) && !this.isListening()) {
+        System.out.println("port set to: " + this.getPort());
+        this.setPort(Integer.parseInt(param));
+      } else isCmd = false;
+    } 
+    if (!isCmd) {
+      try
+      {
+        handleServerMessage(message);
+      } catch(Exception e) {
+        System.out.println("Could not send message.  Terminating server.");
+        System.exit(0);
+      }
+    }
+  }
   /**
    * This method overrides the one in the superclass.  Called
    * when the server starts listening for connections.
@@ -70,6 +123,11 @@ public class EchoServer extends AbstractServer
   {
     System.out.println
       ("Server has stopped listening for connections.");
+  }
+
+  protected void clientConnected(ConnectionToClient client) {
+    System.out.println
+      ("A new client is attempting to connect to the server.");
   }
   
   //Class methods ***************************************************
@@ -105,5 +163,16 @@ public class EchoServer extends AbstractServer
       System.out.println("ERROR - Could not listen for clients!");
     }
   }
+  @Override
+  synchronized protected void clientDisconnected(
+    ConnectionToClient client) {
+      sendToAllClients(client.getInfo("login") + " has disconnected");
+      System.out.println(client.getInfo("login") + " has disconnected");
+    }
+    @Override
+    synchronized protected void clientException(
+      ConnectionToClient client, Throwable exception) {
+        System.out.println(client.getInfo("login") + " has disconnected");
+        sendToAllClients(client.getInfo("login") + " has disconnected");}
 }
 //End of EchoServer class
