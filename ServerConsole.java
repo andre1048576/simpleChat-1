@@ -94,7 +94,8 @@ public class ServerConsole implements ChatIF  {
     System.out.println(message);
   }
 
-  
+  ///TEST
+
   //Class methods ***************************************************
   
   /**
